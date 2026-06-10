@@ -3,6 +3,9 @@ const express = require('express');
 const cors = require('cors');
 const { initDatabase, pool } = require('./config/db');
 const petRoutes = require('./routes/petRoutes');
+const authRoutes = require('./routes/authRoutes');
+const weatherRoutes = require('./routes/weatherRoutes');
+const diaryRoutes = require('./routes/diaryRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -10,24 +13,26 @@ const PORT = process.env.PORT || 3001;
 app.use(cors());
 app.use(express.json());
 
+app.use('/api/auth', authRoutes);
 app.use('/api/pet', petRoutes);
+app.use('/api/weather', weatherRoutes);
+app.use('/api/diary', diaryRoutes);
 
 app.get('/', (req, res) => {
   res.send('狗狗养成游戏后端API');
 });
 
-// 饥饿机制：每分钟减少状态
 const startHungerTimer = () => {
   setInterval(async () => {
     try {
       await pool.execute(
-        'UPDATE pet_stats SET hunger = GREATEST(hunger - 1, 0), happiness = GREATEST(happiness - 1, 0) WHERE id = (SELECT MAX(id) FROM (SELECT * FROM pet_stats) AS temp)'
+        'UPDATE pet_stats SET hunger = GREATEST(hunger - 1, 0), happiness = GREATEST(happiness - 1, 0)'
       );
       console.log('状态已自动减少');
     } catch (error) {
       console.error('自动减少状态失败:', error);
     }
-  }, 60000); // 每分钟执行一次
+  }, 60000);
 };
 
 initDatabase().then(() => {
