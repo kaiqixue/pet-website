@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: pet-backend
+    env: node
+    buildCommand: cd backend && npm install
+    startCommand: cd backend && node server.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DB_HOST
+        sync: false
+      - key: DB_USER
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: DB_NAME
+        value: pet_db
+      - key: DB_CONNECTION_LIMIT
+        value: 5
+      - key: DB_QUEUE_LIMIT
+        value: 0
+    database:
+      name: pet-mysql
+      databaseName: pet_db
+      plan: free
