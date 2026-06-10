@@ -20,10 +20,48 @@
       </div>
     </div>
     
+    <!-- 换装区域 -->
+    <div class="skin-section">
+      <div class="skin-label">外观皮肤：</div>
+      <div class="skin-buttons">
+        <button 
+          class="skin-btn" 
+          :class="{ 'active': currentSkin === 'default' }"
+          @click="changeSkin('default')"
+          :disabled="isLoading"
+        >
+          🐕 默认
+        </button>
+        <button 
+          class="skin-btn" 
+          :class="{ 'active': currentSkin === 'hat' }"
+          @click="changeSkin('hat')"
+          :disabled="isLoading"
+        >
+          🎩 戴帽子
+        </button>
+        <button 
+          class="skin-btn" 
+          :class="{ 'active': currentSkin === 'cape' }"
+          @click="changeSkin('cape')"
+          :disabled="isLoading"
+        >
+          🦸 穿披风
+        </button>
+      </div>
+    </div>
+    
     <div class="pet-display">
       <div class="bubble" :class="{ 'show': showBubble }">汪汪！谢谢主人！</div>
-      <div class="pet-emoji" :class="{ 'animate-bounce': isAnimating, 'animate-blink': isBlinking }">
-        {{ dogEmoji }}
+      <div class="pet-container">
+        <div class="pet-emoji" :class="{ 'animate-bounce': isAnimating, 'animate-blink': isBlinking }">
+          {{ baseDogEmoji }}
+        </div>
+        <!-- 皮肤装饰层 -->
+        <div class="skin-overlay" :class="currentSkin">
+          <span v-if="currentSkin === 'hat'" class="skin-item hat">🎩</span>
+          <div v-if="currentSkin === 'cape'" class="cape-shape"></div>
+        </div>
       </div>
       <!-- 心情留言 -->
       <div class="mood-message">
@@ -84,6 +122,7 @@ const showWalkMessage = ref(false)
 const walkMessage = ref('')
 const petName = ref('小狗狗')
 const newName = ref('')
+const currentSkin = ref('default')
 
 // 心情留言相关
 const moodMessages = {
@@ -128,11 +167,13 @@ const moodMessage = computed(() => {
   }
 })
 
-const dogEmoji = computed(() => {
+const baseDogEmoji = computed(() => {
   const avg = (stats.value.hunger + stats.value.happiness) / 2
-  if (avg >= 80) return '🐕'
-  if (avg >= 50) return '🐶'
-  return '😢'
+  
+  // 使用正面朝向的狗狗🐶
+  if (avg >= 80) return '🐶'
+  else if (avg >= 50) return '🐶'
+  else return '🐶'
 })
 
 const moodText = computed(() => {
@@ -154,6 +195,10 @@ const fetchStats = async () => {
     if (response.data.pet_name) {
       petName.value = response.data.pet_name
     }
+    // 获取皮肤
+    if (response.data.skin) {
+      currentSkin.value = response.data.skin
+    }
   } catch (error) {
     console.error('获取状态失败:', error)
   }
@@ -170,6 +215,26 @@ const setName = async () => {
     emit('action')
   } catch (error) {
     console.error('取名失败:', error)
+  }
+  
+  isLoading.value = false
+}
+
+const changeSkin = async (skin) => {
+  if (currentSkin.value === skin) return
+  isLoading.value = true
+  
+  try {
+    const response = await axios.post('/api/pet/skin', { skin })
+    currentSkin.value = skin
+    stats.value = {
+      hunger: response.data.hunger,
+      happiness: response.data.happiness,
+      intimacy: response.data.intimacy
+    }
+    emit('action')
+  } catch (error) {
+    console.error('切换皮肤失败:', error)
   }
   
   isLoading.value = false
@@ -371,10 +436,22 @@ onMounted(() => {
   transform: translateY(0) scale(1);
 }
 
+.pet-container {
+  position: relative;
+  display: inline-block;
+  width: 120px;
+  height: 120px;
+  margin-bottom: 12px;
+}
+
 .pet-emoji {
   font-size: 80px;
-  margin-bottom: 12px;
-  display: inline-block;
+  line-height: 1;
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2;
 }
 
 .pet-emoji.animate-bounce {
@@ -386,13 +463,62 @@ onMounted(() => {
 }
 
 @keyframes bounce {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-20px); }
+  0%, 100% { transform: translateX(-50%) translateY(0); }
+  50% { transform: translateX(-50%) translateY(-20px); }
 }
 
 @keyframes blink {
   0%, 30%, 70%, 100% { opacity: 1; }
   50% { opacity: 0.3; }
+}
+
+.skin-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.skin-item {
+  position: absolute;
+  font-size: 40px;
+}
+
+.skin-item.hat {
+  top: 25px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 3;
+}
+
+.cape-shape {
+  position: absolute;
+  bottom: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 130px;
+  height: 80px;
+  background: linear-gradient(180deg, #DC143C 0%, #8B0000 100%);
+  border-radius: 50% 50% 45% 45%;
+  z-index: 1;
+  clip-path: polygon(2% 40%, 18% 10%, 82% 10%, 98% 40%);
+  box-shadow: inset 0 -8px 15px rgba(0,0,0,0.4);
+  border: 3px solid #FFD700;
+}
+
+.cape-shape::after {
+  content: '';
+  position: absolute;
+  top: -12px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 50px;
+  height: 15px;
+  background: linear-gradient(180deg, #FFD700 0%, #FFA500 100%);
+  border-radius: 8px 8px 0 0;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.3);
 }
 
 .pet-name {
@@ -615,5 +741,58 @@ onMounted(() => {
   border-left: 8px solid transparent;
   border-right: 8px solid transparent;
   border-bottom: 8px solid rgba(255, 255, 255, 0.9);
+}
+
+/* 换装区域样式 */
+.skin-section {
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.skin-label {
+  text-align: center;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.8);
+  margin-bottom: 12px;
+}
+
+.skin-buttons {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.skin-btn {
+  padding: 8px 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.skin-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.5);
+  transform: translateY(-2px);
+}
+
+.skin-btn.active {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-color: #667eea;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.skin-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 </style>
